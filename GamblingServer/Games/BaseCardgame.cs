@@ -14,11 +14,13 @@ namespace GamblingServer.Games
         /// </summary>
         public List<string> Deck;
         public Dictionary<int, List<string>> PlayerHands;
+        protected Dictionary<String, int> cardValues;
         protected int turnMarker;
         protected int PlayerAmount;
         public BaseCardgame(int[] ids) {
             Deck = [];
             Deckgen();
+            CardValGen();
             PlayerHands = [];
             turnMarker = 0;
             PlayerAmount = ids.Length;
@@ -30,7 +32,7 @@ namespace GamblingServer.Games
         /// <summary>
         /// Generates a shuffled deck of cards, virtual so inherieted classes can use different decks
         /// </summary>
-        public virtual void Deckgen()
+        protected virtual void Deckgen()
         {
             Random random = new Random();
             string[] cards = ["2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A"];
@@ -51,6 +53,17 @@ namespace GamblingServer.Games
                 Deck[n] = value;
             }
 
+        }
+        protected virtual CardValGen() {
+            string[] cards = ["2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A"];
+            for (int i = 0; i < 8; i++) {
+                cardValues[cards[i]]=Int16.Parse(cards[i]);
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                cardValues[cards[i+8]] = 10;
+            }
+            cardValues.Add(cards.Last(), 11);
         }
         public virtual bool ValidateTurn(int id)
         {

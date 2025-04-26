@@ -35,5 +35,10 @@ namespace GamblingServer.Controllers
             }
             return "turn violation";
         }
+        public void Knock()
+        {
+            WhiteJack31 whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
+            if(whiteJack31.setKnock())
+        }
     }
 }
