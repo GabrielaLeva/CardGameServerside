@@ -54,7 +54,8 @@ namespace GamblingServer.Games
             }
 
         }
-        protected virtual CardValGen() {
+        protected virtual void CardValGen() {
+            cardValues = new Dictionary<string, int>();
             string[] cards = ["2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A"];
             for (int i = 0; i < 8; i++) {
                 cardValues[cards[i]]=Int16.Parse(cards[i]);
