@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Security.Cryptography.Xml;
 
 namespace GamblingServer.Games
@@ -12,15 +13,47 @@ namespace GamblingServer.Games
             knock_indicator = -1;
         }
         protected int knock_indicator;
-        public override bool ValidateTurn(int id)
+        public override void IncrementTurn()
         {
-            if (knock_indicator == id) {
-                return false;
+            base.IncrementTurn();
+            if (knock_indicator == turnMarker+1)
+            {
+                Dictionary<int, int> handVals = new Dictionary<int, int>();
+                foreach (var hand in PlayerHands)
+                {
+                    handVals[hand.Key] = EvaluateHand(hand.Value);
+                }
+                
+                SendAll("win", handVals.MaxBy(x => x.Value).Key.ToString());
             }
-            return base.ValidateTurn(id);
+        }
+        public string Discarddraw(int id, string card)
+        {
+            try
+            {
+                if (ValidateTurn(id))
+                {
+                    DiscardCard(id, card);
+                    DrawCards(id, 1); 
+                    SendAll("discard", card);
+                    if (EvaluateHand(PlayerHands[id]) == 31)
+                    {
+                        SendAll("win", id.ToString());
+                    }
+                    return PlayerHands[id][2];
+                }
+            }
+            catch (ArgumentException)
+            {
+                return "Invalid card or player";
+            }
+            return "turn violation";
         }
         public void setKnock(int knocker) {
-            if(knock_indicator == -1) knock_indicator = knocker;
+            if (knock_indicator == -1 & ValidateTurn(knocker)) { 
+                knock_indicator = knocker;
+                SendAll("knock",knocker.ToString());
+            }
         }
         public int EvaluateHand(List<string> hand) {
             int handvalue=0;
@@ -34,20 +67,6 @@ namespace GamblingServer.Games
                 handvalue += cardValues[card[0].ToString()];
             }
             return handvalue;
-        }
-        public int CheckWincons(int id) {
-            if (knock_indicator == id) {
-                //TODO: drawbreakers 
-                Dictionary<int,int> handVals = new Dictionary<int,int>();
-                foreach (var hand in PlayerHands)
-                {
-                    handVals[hand.Key]=EvaluateHand(hand.Value);
-                }
-                return handVals.Max().Key;
-            } else if (EvaluateHand(PlayerHands[id]) == 31) {
-                return id;
-            }
-            return -1;
         }
     }
 }

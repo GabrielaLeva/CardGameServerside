@@ -12,7 +12,7 @@ namespace GamblingServer
         {
             
             cardgames= [];
-            cardgames.Add(new WhiteJack31([1,2]));
+            cardgames.Add(new WhiteJack31([1,2,3]));
         }
 
         private static readonly Object _objLock = new Object();

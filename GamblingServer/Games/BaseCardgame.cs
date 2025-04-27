@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading.Tasks;
 namespace GamblingServer.Games
 {
     /// <summary>
@@ -17,11 +19,13 @@ namespace GamblingServer.Games
         protected Dictionary<String, int> cardValues;
         protected int turnMarker;
         protected int PlayerAmount;
+        public List<WebSocket> connections;
         public BaseCardgame(int[] ids) {
             Deck = [];
             Deckgen();
             CardValGen();
             PlayerHands = [];
+            connections = new List<WebSocket>();
             turnMarker = 0;
             PlayerAmount = ids.Length;
             foreach (int id in ids) {
@@ -66,11 +70,11 @@ namespace GamblingServer.Games
             }
             cardValues.Add(cards.Last(), 11);
         }
-        public virtual bool ValidateTurn(int id)
+        public bool ValidateTurn(int id)
         {
             return id == turnMarker+1;
         }
-        public  void IncrementTurn()
+        public virtual void IncrementTurn()
         {
             turnMarker = (turnMarker + 1) % PlayerAmount;
         }
@@ -84,6 +88,16 @@ namespace GamblingServer.Games
             if (!PlayerHands[id].Remove(card))
             {
                 throw new ArgumentException("ERROR: " + card + " not found in player hand");
+            }
+        }
+        public async Task SendAll(string action, string data) {
+            string message = action + ":" + data;
+            var bytes = Encoding.UTF8.GetBytes(message);
+            foreach (var conn in connections) {
+                if (conn.State == WebSocketState.Open) {
+                    await conn.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length), 
+                        WebSocketMessageType.Text, true, CancellationToken.None);
+                }
             }
         }
     }
