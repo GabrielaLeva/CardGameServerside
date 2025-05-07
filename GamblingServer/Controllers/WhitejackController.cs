@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.WebSockets;
 
+
 namespace GamblingServer.Controllers
 {
     
@@ -36,6 +37,7 @@ namespace GamblingServer.Controllers
             }
             return "turn violation";
         }
+        /*
         [Route("/ws")]
         public async Task Get()
         {
@@ -49,6 +51,7 @@ namespace GamblingServer.Controllers
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             }
         }
+
         private static async Task Echo(WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
@@ -72,7 +75,7 @@ namespace GamblingServer.Controllers
                 receiveResult.CloseStatusDescription,
                 CancellationToken.None);
         }
-        /*public void Knock()
+        public void Knock()
         {
             WhiteJack31 whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
             //if(whiteJack31.setKnock())
