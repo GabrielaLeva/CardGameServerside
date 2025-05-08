@@ -3,7 +3,7 @@ using GamblingServer.DB;
 using GamblingServer.Games;
 using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
-
+//builder.WebHost.UseUrls("http://[::]:8080", "https://[::]:8081");
 var connectionstring= builder.Configuration.GetConnectionString("AuthDB")
         ?? throw new InvalidOperationException("Connection string"
         + "'DefaultConnection' not found.");
@@ -25,6 +25,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseWebSockets();
 app.UseHttpsRedirection();
 

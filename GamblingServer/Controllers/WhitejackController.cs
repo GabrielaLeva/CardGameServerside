@@ -6,7 +6,7 @@ using System.Net.WebSockets;
 
 namespace GamblingServer.Controllers
 {
-    
+
     [Route("api/[controller]")]
     [ApiController]
     public class WhitejackController : ControllerBase
@@ -17,8 +17,9 @@ namespace GamblingServer.Controllers
             return InstanceManager.GetCardgame(0).PlayerHands[id];
         }
         [HttpPost(Name = "DiscardAndDraw")]
-        public string Discarddraw(int id, string card )
+        public ActionResult Discarddraw(int id, string card )
         {
+            ContentResult res;
             WhiteJack31 whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
             try
             {
@@ -27,15 +28,18 @@ namespace GamblingServer.Controllers
                     whiteJack31.DiscardCard(id, card);
                     whiteJack31.DrawCards(id, 1);
                     whiteJack31.IncrementTurn();
-                    return whiteJack31.PlayerHands[id][2];
+                    return Content(whiteJack31.PlayerHands[id][2]);
                 }
             }
             catch (ArgumentException)
             {
-                this.HttpContext.Response.StatusCode = 400;
-                return "Invalid card or player";
+                res = Content("Invalid card or player");
+                res.StatusCode=400;
+                return res;
             }
-            return "turn violation";
+            res= Content("Trun order violation");
+            res.StatusCode = 400;
+            return res;
         }
         /*
         [Route("/ws")]

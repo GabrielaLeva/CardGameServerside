@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,6 +11,12 @@ using System.Text.Encodings;
 
 namespace GamblingServer.Controllers
 {
+    public class authRequestModel
+    {
+        public string username { get; set; }
+        public string password { get; set; }
+
+    }
     [Route("auth/")]
     [ApiController]
     public class LoginController : ControllerBase
@@ -21,25 +28,35 @@ namespace GamblingServer.Controllers
             _context = context;
         }
         [HttpPost("register")]
-        public ActionResult user_register(string username, string password) {
-                _context.Database.EnsureCreated();
+        public ActionResult user_register([FromBody] authRequestModel model)
+        {
+            try
+            {
                 _context.user.Add(new User
                 {
-                    username = username,
-                    passhash = HashPassword(password, _rng),
+                    username = model.username,
+                    passhash = HashPassword(model.password, _rng),
                     creation_time = DateTime.Now,
                 });
                 _context.SaveChanges();
-            return Content("User created: "+username);
+            }
+            catch (MySqlException ex) {
+                return BadRequest("Username already used");
+            }
+            return Content("User created: "+model.username);
         }
         [HttpPost("login")]
-        public ActionResult user_login(string username, string password) {
-            var user_querry = _context.user.Where(usr => usr.username == username).FirstOrDefault();
-            if (user_querry!=null&&Verify(password, user_querry.passhash))
+        public ActionResult user_login([FromBody] authRequestModel model) {
+            var user_querry = _context.user.Where(usr => usr.username == model.username).FirstOrDefault();
+            if (user_querry!=null&&Verify(model.password, user_querry.passhash))
             {
                 return Content("Access granted");
             }
-            else { return Content("Wrong username or password."); }
+            else {
+                var result = Content("Wrong username or password");
+                result.StatusCode = 403;
+                return result;
+            }
         }
         private static bool Verify(string password, byte[] db_res)
         {
