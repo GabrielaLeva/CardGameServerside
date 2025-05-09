@@ -1,13 +1,17 @@
 ﻿using GamblingServer.DB;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using System.Buffers.Text;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings;
+using System.Threading.Tasks;
 
 namespace GamblingServer.Controllers
 {
@@ -46,10 +50,15 @@ namespace GamblingServer.Controllers
             return Content("User created: "+model.username);
         }
         [HttpPost("login")]
-        public ActionResult user_login([FromBody] authRequestModel model) {
+        public async Task<ActionResult> user_login([FromBody] authRequestModel model) {
             var user_querry = _context.user.Where(usr => usr.username == model.username).FirstOrDefault();
             if (user_querry!=null&&Verify(model.password, user_querry.passhash))
             {
+                List<Claim> claims = [new Claim(ClaimTypes.Name,model.username)];
+                ClaimsIdentity identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,new ClaimsPrincipal(identity),
+                    new AuthenticationProperties { AllowRefresh=true});
                 return Content("Access granted");
             }
             else {

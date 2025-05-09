@@ -1,4 +1,5 @@
 ﻿using GamblingServer.Games;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.WebSockets;
@@ -9,6 +10,7 @@ namespace GamblingServer.Controllers
 
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class WhitejackController : ControllerBase
     {
         [HttpGet(Name = "GetHand")]
