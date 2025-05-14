@@ -1,0 +1,23 @@
+services:
+  mysql: 
+    image: mysql:latest
+    container_name: gambling_sql
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5100:3306/tcp"
+      - "51000:33060/tcp"
+  gambling_server:
+    image: gamblingserver:latest
+    container_name: gambling_server
+    volumes:
+      - type: bind
+        source: C:\Users\gabal\AppData\Roaming\ASP.NET\Https
+        target: /app/https
+    environment:
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=89cef295-305f-4dc0-a230-9918e1921719
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/https/Gambling.pfx
+    ports:
+      - "2137:8080/tcp"
+      - "2138:8081/tcp"
+    

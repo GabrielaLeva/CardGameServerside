@@ -1,14 +1,17 @@
 ﻿using GamblingServer.Games;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 using System.Net.WebSockets;
 using System.Text;
 
 namespace GamblingServer.Controllers
 {
-    
+
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class WhitejackController : ControllerBase
     {
         WhiteJack31 whiteJack31;
@@ -18,58 +21,94 @@ namespace GamblingServer.Controllers
         }
         
         [Route("/ws")]
-        public async Task Get()
+        public async Task Get(string guid)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 string playerID= HttpContext.Request.Query["id"]; //placeholder with bad security
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                whiteJack31.connections.Add(webSocket);
 
-                string msg= "hand:"+String.Join(",",GetHand(Int16.Parse(playerID)));
-                var bytes = Encoding.UTF8.GetBytes(msg);
-
-                await whiteJack31.SendAll("playerjoined", playerID);
-                await webSocket.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
-                        WebSocketMessageType.Text, true, CancellationToken.None);
-                await GameActionDispatcher(webSocket, Int16.Parse(playerID));
+                await WaitForOpponent(webSocket);
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    var uname= HttpContext.User.Identity.Name;
+                    GameDispatcher(webSocket,uname);
+                }
             }
             else
             {
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             }
         }
-        private  async Task GameActionDispatcher(WebSocket webSocket,int id)
+
+        private static async Task WaitForOpponent(WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
-            while (webSocket.State==WebSocketState.Open)
+            var message = "Waiting for the opponent";
+            var bytes = Encoding.UTF8.GetBytes(message);
+            while (webSocket.State!=WebSocketState.Closed && webSocket.State!=WebSocketState.Aborted)
             {
-                var result = await webSocket.ReceiveAsync(
-                new ArraySegment<byte>(buffer), CancellationToken.None);
-                string gameaction=Encoding.UTF8.GetString(buffer,0,result.Count);
-                string msg = "";
-                var action=gameaction.Split(':');
-                switch (action[0].Trim())
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+
+            }
+        }
+        private static async Task GameDispatcher(WebSocket webSocket,string user)
+        {
+            WhiteJack31 game = InstanceManager.GetCardgame(0) as WhiteJack31;
+            var buffer = new byte[1024 * 4];
+            var message = game.PlayerHands[user].ToString();
+            var bytes = Encoding.UTF8.GetBytes(message);
+            while (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
+            {
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                var user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                switch (Encoding.UTF8.GetString(buffer,0,user_action.Count))
                 {
-                    case "discard":
-                        msg="card:"+whiteJack31.Discarddraw(id,action[1].Trim());
-                        var bytes = Encoding.UTF8.GetBytes(msg);
-                        await webSocket.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
-                        WebSocketMessageType.Text, true, CancellationToken.None);
+                    case "take":
+                        game.PlayerHands[user].Add(game.DiscardPile.Last());
+                        message = game.PlayerHands[user][3];
+                        bytes = Encoding.UTF8.GetBytes(message);
+                        await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                        user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                        game.DiscardCard(user, Encoding.UTF8.GetString(buffer, 0, user_action.Count));
+                        game.CheckWincons();
+                        break;
+                    case "draw":
+                        game.DrawCards(user, 1);
+                        user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                        message = game.PlayerHands[user][3];
+                        bytes = Encoding.UTF8.GetBytes(message);
+                        await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                        game.DiscardCard(user, Encoding.UTF8.GetString(buffer, 0, user_action.Count));
+                        game.CheckWincons();
                         break;
                     case "knock":
-                        whiteJack31.setKnock(id);
+                        game.setKnock(user);
+                        game.IncrementTurn();
                         break;
-                    case "pass":
-                        whiteJack31.IncrementTurn();
+                    case "stand":
+                        game.IncrementTurn();
                         break;
                     default:
                         break;
                 }
             }
-        }
-        public WhitejackController() {
-            whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
         }
     }
 }

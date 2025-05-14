@@ -6,51 +6,22 @@ namespace GamblingServer.Games
 {
     public class WhiteJack31:BaseCardgame
     {
-        public WhiteJack31(int[] ids): base(ids) {
-            foreach (int id in ids) {
+        public WhiteJack31(string[] ids): base(ids) {
+            foreach (var id in ids) {
                 DrawCards(id, 3);
             }
-            knock_indicator = -1;
+            knock_indicator = "";
         }
-        protected int knock_indicator;
-        public override void IncrementTurn()
+        protected string knock_indicator;
+        public override bool ValidateTurn(string uname)
         {
-            base.IncrementTurn();
-            if (knock_indicator == turnMarker+1)
-            {
-                Dictionary<int, int> handVals = new Dictionary<int, int>();
-                foreach (var hand in PlayerHands)
-                {
-                    handVals[hand.Key] = EvaluateHand(hand.Value);
-                }
-                
-                SendAll("win", handVals.MaxBy(x => x.Value).Key.ToString());
+            if (knock_indicator == uname) {
+                return false;
             }
+            return base.ValidateTurn(uname);
         }
-        public string Discarddraw(int id, string card)
-        {
-            try
-            {
-                if (ValidateTurn(id))
-                {
-                    DiscardCard(id, card);
-                    DrawCards(id, 1); 
-                    SendAll("discard", card);
-                    if (EvaluateHand(PlayerHands[id]) == 31)
-                    {
-                        SendAll("win", id.ToString());
-                    }
-                    return PlayerHands[id][2];
-                }
-            }
-            catch (ArgumentException)
-            {
-                return "Invalid card or player";
-            }
-            return "turn violation";
-        }
-        public void setKnock(int knocker) {
-            if (knock_indicator == -1 & ValidateTurn(knocker)) { 
+        public void setKnock(string knocker) {
+            if(knock_indicator == "") {
                 knock_indicator = knocker;
                 SendAll("knock",knocker.ToString());
             }
@@ -67,6 +38,22 @@ namespace GamblingServer.Games
                 handvalue += cardValues[card[0].ToString()];
             }
             return handvalue;
+        }
+        public void CheckWincons() {
+            var handVals = new Dictionary<string, int>();
+            foreach (var hand in PlayerHands)
+            {
+                handVals[hand.Key] = EvaluateHand(hand.Value);
+            }
+
+            if (handVals[PlayerHands.Keys.ElementAt(turnMarker)] == 31)
+            {
+                return;
+            }
+            IncrementTurn();
+            if (knock_indicator == PlayerHands.Keys.ElementAt(turnMarker)) {
+                return;
+            }
         }
     }
 }

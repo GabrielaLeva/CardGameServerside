@@ -1,6 +1,11 @@
-@GamblingServer_HostAddress = http://localhost:5109
+@GamblingServer_HostAddress = http://localhost:2137
 
-GET {{GamblingServer_HostAddress}}/whitejack/
-Accept: application/json
+POST {{GamblingServer_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "username":"pigeon",
+  "password":"dove123"
+}
 
 ###
