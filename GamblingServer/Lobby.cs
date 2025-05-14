@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Net.WebSockets;
 using System.Threading.Tasks.Dataflow;
 using GamblingServer.Games;
 namespace GamblingServer
@@ -14,27 +15,40 @@ namespace GamblingServer
     public class Lobby
     {
         public GameType type;
-        public List<string> users;
+        public Dictionary<string,WebSocket> userConnections;
         public int max_users;
-        public Lobby(GameType type, string starter, int max_users)
+        public Lobby(GameType type, string starter,WebSocket webSocket, int max_users)
         {
             this.type = type;
-            users = [starter];
+            userConnections= new Dictionary<string, WebSocket>() { {starter,webSocket } };
             this.max_users = max_users;
         }
-        public void PlayerJoin(string user)
+        public void PlayerJoin(string user, WebSocket webSocket)
         {
-            users.Add(user);
+            userConnections.Add(user, webSocket);
+            if (userConnections.Count >= max_users)
+            {
+                MakeGame();
+            }
         }
-        public void MakeGame()
+        public async void MakeGame()
         {
+            var gameconns = userConnections.Take(max_users).ToDictionary();
+            var game_guid = Guid.NewGuid();
             switch (type) {
                 case GameType.Whitejack:
-                    InstanceManager.AddGame(new WhiteJack31(users.GetRange(users.GetRange(0, max_users));
+                    var game = new WhiteJack31(gameconns.Keys.ToArray(), game_guid);
+                    game.PlayerSockets = gameconns;
+                    InstanceManager.AddGame(game,game_guid);
+                    await game.SendAll("guid", game_guid.ToString());
                     break;
                 default:
                     Console.WriteLine("Not Implemented");
                     break;
+            }
+            foreach(var user in gameconns.Keys)
+            {
+                userConnections.Remove(user);
             }
         }
     }

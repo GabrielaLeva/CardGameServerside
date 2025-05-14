@@ -14,26 +14,33 @@ namespace GamblingServer.Controllers
     [Authorize]
     public class WhitejackController : ControllerBase
     {
-        WhiteJack31 whiteJack31;
-        public List<string> GetHand(int id)
-        {
-            return whiteJack31.PlayerHands[id];
-        }
         
-        [Route("/ws")]
-        public async Task Get(string guid)
+        [Route("/fetchgameid")]
+        public async Task Get()
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                string playerID= HttpContext.Request.Query["id"]; //placeholder with bad security
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
-                await WaitForOpponent(webSocket);
-                if (webSocket.State == WebSocketState.Open)
-                {
-                    var uname= HttpContext.User.Identity.Name;
-                    GameDispatcher(webSocket,uname);
-                }
+                var uname = HttpContext.User.Identity.Name;
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                var lobby = InstanceManager.GetLobby(GameType.Whitejack,uname,webSocket);
+                await WaitForOpponent(uname,webSocket,lobby);
+            }
+            else
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            }
+        }
+        [Route("/game")]
+        public async Task Game(string guid)
+        {
+            if (HttpContext.WebSockets.IsWebSocketRequest)
+            {
+
+                var uname = HttpContext.User.Identity.Name;
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                WhiteJack31 game = InstanceManager.GetCardgame(Guid.Parse(guid)) as WhiteJack31;
+                await GameDispatcher(webSocket,uname,game);
             }
             else
             {
@@ -41,24 +48,25 @@ namespace GamblingServer.Controllers
             }
         }
 
-        private static async Task WaitForOpponent(WebSocket webSocket)
+        private static async Task WaitForOpponent(string uname,WebSocket webSocket,Lobby lobby)
         {
             var buffer = new byte[1024 * 4];
             var message = "Waiting for the opponent";
             var bytes = Encoding.UTF8.GetBytes(message);
-            while (webSocket.State!=WebSocketState.Closed && webSocket.State!=WebSocketState.Aborted)
+            while (webSocket.State!=WebSocketState.Closed && webSocket.State!=WebSocketState.Aborted && lobby.userConnections.ContainsKey(uname))
             {
+                message = "Players in lobby"+lobby.userConnections.Count.ToString();
                 await webSocket.SendAsync(
                     new ArraySegment<byte>(bytes, 0, bytes.Length),
                     WebSocketMessageType.Text,
                     true,
                     CancellationToken.None);
+                Thread.Sleep(1000);
 
             }
         }
-        private static async Task GameDispatcher(WebSocket webSocket,string user)
+        private static async Task GameDispatcher(WebSocket webSocket,string user,WhiteJack31 game)
         {
-            WhiteJack31 game = InstanceManager.GetCardgame(0) as WhiteJack31;
             var buffer = new byte[1024 * 4];
             var message = game.PlayerHands[user].ToString();
             var bytes = Encoding.UTF8.GetBytes(message);

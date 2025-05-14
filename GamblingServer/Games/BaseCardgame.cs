@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace GamblingServer.Games
@@ -18,19 +20,21 @@ namespace GamblingServer.Games
         /// </summary>
         public List<string> Deck;
         public Dictionary<string, List<string>> PlayerHands;
-        public Dictionary<string, WebSocket>? PlayerSockets;
+        public Dictionary<string, WebSocket> PlayerSockets;
         public List<string> DiscardPile;
         protected Dictionary<string, int> cardValues;
         protected int turnMarker;
         protected int PlayerAmount;
         protected Guid guid;
 
-        public BaseCardgame(string[] ids) {
+        public BaseCardgame(string[] ids,Guid guid) {
+            this.guid = guid;
             Deck = [];
+            DiscardPile = [];
             Deckgen();
             CardValGen();
             PlayerHands = [];
-            connections = new List<WebSocket>();
+            PlayerSockets = [];
             turnMarker = 0;
             PlayerAmount = ids.Length;
             foreach (string id in ids) {
@@ -79,6 +83,11 @@ namespace GamblingServer.Games
         public  void IncrementTurn()
         {
             turnMarker = (turnMarker + 1) % PlayerAmount;
+            var uname = PlayerHands.ElementAt(turnMarker).Key;
+            string message = "urturn";
+            var bytes = Encoding.UTF8.GetBytes(message);
+            PlayerSockets[uname].SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
+                        WebSocketMessageType.Text, true, CancellationToken.None);
         }
         public string[] DrawCards(string id,int x) {
             // TODO: add a deck out exception when the player tries to draw more cards than there are in deck
@@ -86,12 +95,13 @@ namespace GamblingServer.Games
             Deck.RemoveRange(0, x);
             return PlayerHands[id].GetRange(PlayerHands[id].Count - x, x).ToArray();
         }
-        public void DiscardCard(string id, string card) {
+        public async void DiscardCard(string id, string card) {
             if (!PlayerHands[id].Remove(card))
             {
                 throw new ArgumentException("ERROR: " + card + " not found in player hand");
             }
             DiscardPile.Add(card);
+            await SendAll("discard",card,id);
         }
         public async Task SendAll(string action, string data) {
             string message = action + ":" + data;
@@ -99,6 +109,19 @@ namespace GamblingServer.Games
             foreach (var conn in PlayerSockets.Values) {
                 if (conn.State == WebSocketState.Open) {
                     await conn.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length), 
+                        WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
+        }
+        public async Task SendAll(string action, string data, string exclude_sender)
+        {
+            string message = action + ":" + data;
+            var bytes = Encoding.UTF8.GetBytes(message);
+            foreach (var conn in PlayerSockets)
+            {
+                if (conn.Key!= exclude_sender& conn.Value.State == WebSocketState.Open)
+                {
+                    await conn.Value.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
                         WebSocketMessageType.Text, true, CancellationToken.None);
                 }
             }

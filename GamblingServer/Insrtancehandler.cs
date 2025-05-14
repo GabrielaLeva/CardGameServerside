@@ -1,5 +1,6 @@
 ﻿using GamblingServer.Games;
 using Microsoft.AspNetCore.SignalR;
+using System.Net.WebSockets;
 namespace GamblingServer
 {
     /// <summary>
@@ -34,21 +35,21 @@ namespace GamblingServer
 
             return _instOfSingleton;
         }
-        public static Lobby GetLobby(GameType type, string user)
+        public static Lobby GetLobby(GameType type, string user,WebSocket webSocket)
         {
             Lobby lobby = _instOfSingleton.lobbies.Find(l=>l.type == type);
             if (lobby == null)
             {
-                lobby = new Lobby(type, user, 2);
+                lobby = new Lobby(type, user, webSocket, 2);
                 _instOfSingleton.lobbies.Add(lobby);
             }
             else {
-                lobby.PlayerJoin(user);
+                lobby.PlayerJoin(user,webSocket);
             }
-                return lobby;
+            return lobby;
         }
-        public static void AddGame(BaseCardgame game) {
-            _instOfSingleton.cardgames.Add(Guid.NewGuid(),game);
+        public static void AddGame(BaseCardgame game,Guid guid) {
+            _instOfSingleton.cardgames.Add(guid,game);
         }
         public static void RemoveGame(Guid guid)
         {
