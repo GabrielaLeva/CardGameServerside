@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Security.Cryptography.Xml;
 
 namespace GamblingServer.Games
@@ -20,7 +21,10 @@ namespace GamblingServer.Games
             return base.ValidateTurn(uname);
         }
         public void setKnock(string knocker) {
-            if(knock_indicator == "") knock_indicator = knocker;
+            if(knock_indicator == "") {
+                knock_indicator = knocker;
+                SendAll("knock",knocker.ToString());
+            }
         }
         public int EvaluateHand(List<string> hand) {
             int handvalue=0;

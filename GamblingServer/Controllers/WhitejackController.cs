@@ -14,42 +14,20 @@ namespace GamblingServer.Controllers
     [Authorize]
     public class WhitejackController : ControllerBase
     {
-        [HttpGet(Name = "GetHand")]
+        WhiteJack31 whiteJack31;
         public List<string> GetHand(int id)
         {
-            return InstanceManager.GetCardgame(0).PlayerHands[id];
+            return whiteJack31.PlayerHands[id];
         }
-        [HttpPost(Name = "DiscardAndDraw")]
-        public ActionResult Discarddraw(int id, string card )
-        {
-            ContentResult res;
-            WhiteJack31 whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
-            try
-            {
-                if (whiteJack31.ValidateTurn(id))
-                {
-                    whiteJack31.DiscardCard(id, card);
-                    whiteJack31.DrawCards(id, 1);
-                    whiteJack31.IncrementTurn();
-                    return Content(whiteJack31.PlayerHands[id][2]);
-                }
-            }
-            catch (ArgumentException)
-            {
-                res = Content("Invalid card or player");
-                res.StatusCode=400;
-                return res;
-            }
-            res= Content("Trun order violation");
-            res.StatusCode = 400;
-            return res;
-        }
+        
         [Route("/ws")]
         public async Task Get(string guid)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
+                string playerID= HttpContext.Request.Query["id"]; //placeholder with bad security
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+
                 await WaitForOpponent(webSocket);
                 if (webSocket.State == WebSocketState.Open)
                 {

@@ -11,7 +11,6 @@ namespace GamblingServer
         private List<Lobby> lobbies;
         private InstanceManager()
         {
-            
             cardgames= [];
             lobbies = [];
         }

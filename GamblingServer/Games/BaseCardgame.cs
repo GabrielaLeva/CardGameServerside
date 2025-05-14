@@ -1,6 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
+using System.Text;
+using System.Threading.Tasks;
+
 
 namespace GamblingServer.Games
 {
@@ -27,6 +30,7 @@ namespace GamblingServer.Games
             Deckgen();
             CardValGen();
             PlayerHands = [];
+            connections = new List<WebSocket>();
             turnMarker = 0;
             PlayerAmount = ids.Length;
             foreach (string id in ids) {
@@ -88,6 +92,16 @@ namespace GamblingServer.Games
                 throw new ArgumentException("ERROR: " + card + " not found in player hand");
             }
             DiscardPile.Add(card);
+        }
+        public async Task SendAll(string action, string data) {
+            string message = action + ":" + data;
+            var bytes = Encoding.UTF8.GetBytes(message);
+            foreach (var conn in PlayerSockets.Values) {
+                if (conn.State == WebSocketState.Open) {
+                    await conn.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length), 
+                        WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
         }
     }
 }
