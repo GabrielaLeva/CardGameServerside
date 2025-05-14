@@ -1,4 +1,5 @@
 ﻿using GamblingServer.Games;
+using Microsoft.AspNetCore.SignalR;
 namespace GamblingServer
 {
     /// <summary>
@@ -6,13 +7,13 @@ namespace GamblingServer
     /// </summary>
     public sealed class InstanceManager
     {
-        private List<BaseCardgame> cardgames;
-
+        private Dictionary<Guid,BaseCardgame> cardgames;
+        private List<Lobby> lobbies;
         private InstanceManager()
         {
             
             cardgames= [];
-            cardgames.Add(new WhiteJack31([1,2]));
+            lobbies = [];
         }
 
         private static readonly Object _objLock = new Object();
@@ -34,8 +35,28 @@ namespace GamblingServer
 
             return _instOfSingleton;
         }
-        public static BaseCardgame GetCardgame(int idx) {
-            return _instOfSingleton.cardgames[idx];
+        public static Lobby GetLobby(GameType type, string user)
+        {
+            Lobby lobby = _instOfSingleton.lobbies.Find(l=>l.type == type);
+            if (lobby == null)
+            {
+                lobby = new Lobby(type, user, 2);
+                _instOfSingleton.lobbies.Add(lobby);
+            }
+            else {
+                lobby.PlayerJoin(user);
+            }
+                return lobby;
+        }
+        public static void AddGame(BaseCardgame game) {
+            _instOfSingleton.cardgames.Add(Guid.NewGuid(),game);
+        }
+        public static void RemoveGame(Guid guid)
+        {
+            _instOfSingleton.cardgames.Remove(guid);
+        }
+        public static BaseCardgame GetCardgame(Guid guid) {
+            return _instOfSingleton.cardgames[guid];
         }
     }
 }

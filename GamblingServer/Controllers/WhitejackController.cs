@@ -2,8 +2,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 using System.Net.WebSockets;
-
+using System.Text;
 
 namespace GamblingServer.Controllers
 {
@@ -43,14 +44,18 @@ namespace GamblingServer.Controllers
             res.StatusCode = 400;
             return res;
         }
-        /*
         [Route("/ws")]
-        public async Task Get()
+        public async Task Get(string guid)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await Echo(webSocket);
+                await WaitForOpponent(webSocket);
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    var uname= HttpContext.User.Identity.Name;
+                    GameDispatcher(webSocket,uname);
+                }
             }
             else
             {
@@ -58,33 +63,74 @@ namespace GamblingServer.Controllers
             }
         }
 
-        private static async Task Echo(WebSocket webSocket)
+        private static async Task WaitForOpponent(WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.ReceiveAsync(
-                new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            while (!receiveResult.CloseStatus.HasValue)
+            var message = "Waiting for the opponent";
+            var bytes = Encoding.UTF8.GetBytes(message);
+            while (webSocket.State!=WebSocketState.Closed && webSocket.State!=WebSocketState.Aborted)
             {
                 await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, receiveResult.Count),
-                    receiveResult.MessageType,
-                    receiveResult.EndOfMessage,
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
                     CancellationToken.None);
 
-                receiveResult = await webSocket.ReceiveAsync(
-                    new ArraySegment<byte>(buffer), CancellationToken.None);
             }
-
-            await webSocket.CloseAsync(
-                receiveResult.CloseStatus.Value,
-                receiveResult.CloseStatusDescription,
-                CancellationToken.None);
         }
-        public void Knock()
+        private static async Task GameDispatcher(WebSocket webSocket,string user)
         {
-            WhiteJack31 whiteJack31 = InstanceManager.GetCardgame(0) as WhiteJack31;
-            //if(whiteJack31.setKnock())
-        }*/
+            WhiteJack31 game = InstanceManager.GetCardgame(0) as WhiteJack31;
+            var buffer = new byte[1024 * 4];
+            var message = game.PlayerHands[user].ToString();
+            var bytes = Encoding.UTF8.GetBytes(message);
+            while (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
+            {
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                var user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                switch (Encoding.UTF8.GetString(buffer,0,user_action.Count))
+                {
+                    case "take":
+                        game.PlayerHands[user].Add(game.DiscardPile.Last());
+                        message = game.PlayerHands[user][3];
+                        bytes = Encoding.UTF8.GetBytes(message);
+                        await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                        user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                        game.DiscardCard(user, Encoding.UTF8.GetString(buffer, 0, user_action.Count));
+                        game.CheckWincons();
+                        break;
+                    case "draw":
+                        game.DrawCards(user, 1);
+                        user_action = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+                        message = game.PlayerHands[user][3];
+                        bytes = Encoding.UTF8.GetBytes(message);
+                        await webSocket.SendAsync(
+                    new ArraySegment<byte>(bytes, 0, bytes.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+                        game.DiscardCard(user, Encoding.UTF8.GetString(buffer, 0, user_action.Count));
+                        game.CheckWincons();
+                        break;
+                    case "knock":
+                        game.setKnock(user);
+                        game.IncrementTurn();
+                        break;
+                    case "stand":
+                        game.IncrementTurn();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
     }
 }

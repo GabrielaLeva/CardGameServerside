@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.WebSockets;
 
 namespace GamblingServer.Games
 {
@@ -13,18 +14,22 @@ namespace GamblingServer.Games
         /// The cards are stored as 2 character strings for now  with 0 as 10 and A as ace, and the house being marked by the first letter in the english name (like C for clubs)
         /// </summary>
         public List<string> Deck;
-        public Dictionary<int, List<string>> PlayerHands;
-        protected Dictionary<String, int> cardValues;
+        public Dictionary<string, List<string>> PlayerHands;
+        public Dictionary<string, WebSocket>? PlayerSockets;
+        public List<string> DiscardPile;
+        protected Dictionary<string, int> cardValues;
         protected int turnMarker;
         protected int PlayerAmount;
-        public BaseCardgame(int[] ids) {
+        protected Guid guid;
+
+        public BaseCardgame(string[] ids) {
             Deck = [];
             Deckgen();
             CardValGen();
             PlayerHands = [];
             turnMarker = 0;
             PlayerAmount = ids.Length;
-            foreach (int id in ids) {
+            foreach (string id in ids) {
                 PlayerHands[id] = [];
             }
             
@@ -66,25 +71,23 @@ namespace GamblingServer.Games
             }
             cardValues.Add(cards.Last(), 11);
         }
-        public virtual bool ValidateTurn(int id)
-        {
-            return id == turnMarker+1;
-        }
+        public virtual bool ValidateTurn(string uname) => uname == PlayerHands.Keys.ElementAt(turnMarker);
         public  void IncrementTurn()
         {
             turnMarker = (turnMarker + 1) % PlayerAmount;
         }
-        public string[] DrawCards(int id,int x) {
+        public string[] DrawCards(string id,int x) {
             // TODO: add a deck out exception when the player tries to draw more cards than there are in deck
             PlayerHands[id].AddRange(Deck.GetRange(0, x));
             Deck.RemoveRange(0, x);
             return PlayerHands[id].GetRange(PlayerHands[id].Count - x, x).ToArray();
         }
-        public void DiscardCard(int id, string card) {
+        public void DiscardCard(string id, string card) {
             if (!PlayerHands[id].Remove(card))
             {
                 throw new ArgumentException("ERROR: " + card + " not found in player hand");
             }
+            DiscardPile.Add(card);
         }
     }
 }

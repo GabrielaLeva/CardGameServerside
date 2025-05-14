@@ -5,22 +5,22 @@ namespace GamblingServer.Games
 {
     public class WhiteJack31:BaseCardgame
     {
-        public WhiteJack31(int[] ids): base(ids) {
-            foreach (int id in ids) {
+        public WhiteJack31(string[] ids): base(ids) {
+            foreach (var id in ids) {
                 DrawCards(id, 3);
             }
-            knock_indicator = -1;
+            knock_indicator = "";
         }
-        protected int knock_indicator;
-        public override bool ValidateTurn(int id)
+        protected string knock_indicator;
+        public override bool ValidateTurn(string uname)
         {
-            if (knock_indicator == id) {
+            if (knock_indicator == uname) {
                 return false;
             }
-            return base.ValidateTurn(id);
+            return base.ValidateTurn(uname);
         }
-        public void setKnock(int knocker) {
-            if(knock_indicator == -1) knock_indicator = knocker;
+        public void setKnock(string knocker) {
+            if(knock_indicator == "") knock_indicator = knocker;
         }
         public int EvaluateHand(List<string> hand) {
             int handvalue=0;
@@ -35,19 +35,21 @@ namespace GamblingServer.Games
             }
             return handvalue;
         }
-        public int CheckWincons(int id) {
-            if (knock_indicator == id) {
-                //TODO: drawbreakers 
-                Dictionary<int,int> handVals = new Dictionary<int,int>();
-                foreach (var hand in PlayerHands)
-                {
-                    handVals[hand.Key]=EvaluateHand(hand.Value);
-                }
-                return handVals.Max().Key;
-            } else if (EvaluateHand(PlayerHands[id]) == 31) {
-                return id;
+        public void CheckWincons() {
+            var handVals = new Dictionary<string, int>();
+            foreach (var hand in PlayerHands)
+            {
+                handVals[hand.Key] = EvaluateHand(hand.Value);
             }
-            return -1;
+
+            if (handVals[PlayerHands.Keys.ElementAt(turnMarker)] == 31)
+            {
+                return;
+            }
+            IncrementTurn();
+            if (knock_indicator == PlayerHands.Keys.ElementAt(turnMarker)) {
+                return;
+            }
         }
     }
 }
