@@ -25,8 +25,11 @@ namespace GamblingServer.Games
         protected Dictionary<string, int> cardValues;
         protected int turnMarker;
         protected int PlayerAmount;
+        /// <summary>
+        /// For future development, there is a uique identifier for each game. It's here so the players can rejoin if connection is lost.
+        /// </summary>
         protected Guid guid;
-
+        
         public BaseCardgame(string[] ids,Guid guid) {
             this.guid = guid;
             Deck = [];
@@ -95,13 +98,14 @@ namespace GamblingServer.Games
             Deck.RemoveRange(0, x);
             return PlayerHands[id].GetRange(PlayerHands[id].Count - x, x).ToArray();
         }
-        public async void DiscardCard(string id, string card) {
+        public async Task<bool> DiscardCard(string id, string card) {
             if (!PlayerHands[id].Remove(card))
             {
-                throw new ArgumentException("ERROR: " + card + " not found in player hand");
+                return false;
             }
             DiscardPile.Add(card);
             await SendAll("discard",card,id);
+            return true;
         }
         public async Task SendAll(string action, string data) {
             string message = action + ":" + data;

@@ -4,8 +4,10 @@ using GamblingServer.Games;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Text;
+using Microsoft.AspNetCore.Identity;
+using System.Net.WebSockets;
 var builder = WebApplication.CreateBuilder(args);
-//builder.WebHost.UseUrls("http://[::]:8080", "https://[::]:8081");
 var connectionstring= builder.Configuration.GetConnectionString("AuthDB")
         ?? throw new InvalidOperationException("Connection string"
         + "'DefaultConnection' not found.");
@@ -33,10 +35,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseWebSockets();
-app.UseHttpsRedirection();
 
 app.UseAuthorization();
 app.UseAuthentication();
 app.MapControllers();
+app.MapGet("/wj/fetch", async (HttpContext context) => {
+    if (context.WebSockets.IsWebSocketRequest)
+    {
 
+        var uname = context.User.Identity.Name;
+        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        var buffer = new byte[1024];
+        if (uname == null)
+        {
+            await webSocket.ReceiveAsync(buffer, CancellationToken.None);
+            uname=Encoding.UTF8.GetString(buffer);
+        }
+
+        TaskCompletionSource<string> game_completion = new TaskCompletionSource<string>();
+        var lobby = InstanceManager.GetLobby(GameType.Whitejack, uname, webSocket);
+        await game_completion.Task;
+    }
+    else
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+    }
+});
 app.Run();

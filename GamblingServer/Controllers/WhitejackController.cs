@@ -9,9 +9,8 @@ using System.Text;
 namespace GamblingServer.Controllers
 {
 
-    [Route("api/[controller]")]
+    [Route("/whitejack")]
     [ApiController]
-    [Authorize]
     public class WhitejackController : ControllerBase
     {
         
